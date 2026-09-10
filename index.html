@@ -85,7 +85,9 @@
   header p.sub { margin: 0; color: var(--text-muted); font-size: 14px; max-width: 46ch; }
   .mes-atual { text-align: right; }
   .mes-atual .label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-faint); }
-  .mes-atual .valor { font-family: "IBM Plex Mono", monospace; font-size: 20px; font-weight: 600; color: var(--text); }
+  .mes-atual .valor { font-family: "IBM Plex Mono", monospace; font-size: 20px; font-weight: 600; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+  tbody tr.linha-selecionada { background: var(--accent-soft); }
+  tbody tr.linha-selecionada td:first-child { color: var(--accent); }
 
   .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 32px; }
   .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; }
@@ -140,7 +142,7 @@
     </div>
     <div class="mes-atual">
       <div class="label">Competência</div>
-      <div class="valor" id="mesAtual">—</div>
+      <select class="valor" id="mesSelect"></select>
     </div>
   </header>
 
@@ -180,11 +182,21 @@ function mesLabel(key){ const [a,m] = key.split('-'); return `${MESES_PT[m]}/${a
 
 const meses = Object.keys(DATA).sort().reverse();
 const ultimo = meses[0];
-document.getElementById('mesAtual').textContent = ultimo ? mesLabel(ultimo) : '—';
+
+const mesSelect = document.getElementById('mesSelect');
+meses.forEach(m => {
+  const opt = document.createElement('option');
+  opt.value = m;
+  opt.textContent = mesLabel(m);
+  mesSelect.appendChild(opt);
+});
+if (ultimo) mesSelect.value = ultimo;
 
 const grid = document.getElementById('kpiGrid');
-if (ultimo) {
-  const d = DATA[ultimo];
+function renderCards(mes) {
+  grid.innerHTML = '';
+  const d = DATA[mes];
+  if (!d) return;
   ['total','voluntaria','inadimplencia','prematura'].forEach(key => {
     const v = d[key], def = DEFS[key];
     const el = document.createElement('div');
@@ -215,8 +227,31 @@ const tbody = document.getElementById('tabelaBody');
 meses.forEach(m => {
   const d = DATA[m];
   const tr = document.createElement('tr');
+  tr.dataset.mes = m;
+  tr.style.cursor = 'pointer';
   tr.innerHTML = `<td>${mesLabel(m)}</td><td>${fmt(d.total.total)}</td><td>${fmt(d.total.b2c)}</td><td>${fmt(d.total.b2b)}</td><td>${fmt(d.voluntaria.total)}</td><td>${fmt(d.inadimplencia.total)}</td><td>${fmt(d.prematura.total)}</td>`;
+  tr.addEventListener('click', () => { mesSelect.value = m; mesSelect.dispatchEvent(new Event('change')); });
   tbody.appendChild(tr);
 });
 
+function marcarLinhaSelecionada(mes) {
+  tbody.querySelectorAll('tr').forEach(tr => {
+    tr.classList.toggle('linha-selecionada', tr.dataset.mes === mes);
+  });
+}
+
+// Na versao publica (sem dado de cliente) o botao de Excel nao existe -- gerar_g8_publico.py
+// remove o bloco inteiro que define esse callback. selecionarMes so chama se ele existir.
+let aoTrocarMes = null;
+
+function selecionarMes(mes) {
+  renderCards(mes);
+  marcarLinhaSelecionada(mes);
+  if (aoTrocarMes) aoTrocarMes(mes);
+}
+
+mesSelect.addEventListener('change', () => selecionarMes(mesSelect.value));
+
+
+if (ultimo) selecionarMes(ultimo);
 </script>
